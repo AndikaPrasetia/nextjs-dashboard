@@ -1,4 +1,7 @@
+// sql merupakan fungsi dari "@vercel/postgres"
 import { sql } from "@vercel/postgres";
+// unstable_noStore merupakan API dari Next.js
+import { unstable_noStore as noStore } from 'next/cache';
 import {
   CustomerField,
   CustomersTable,
@@ -13,6 +16,13 @@ import { formatCurrency } from "./utils";
 export async function fetchRevenue() {
   // Add noStore() here prevent the response from being cached.
   // This is equivalent to in fetch(..., {cache: 'no-store'}).
+
+  /**
+   * Anda dapat menggunakan API Next.js yang disebut 
+   * 'stable_noStore' di dalam Komponen Server untuk men-tidak
+   * ikut sertakan fungsi pengambilan data dalam rendering statis.
+   */
+  noStore();
 
   try {
     // Artificially delay a reponse for demo purposes.
@@ -32,7 +42,18 @@ export async function fetchRevenue() {
   }
 }
 
+/** Ada beberapa kasus di mana Anda harus menulis query database:
+ 
+ * Saat membuat endpoints API, Anda perlu menulis logika untuk 
+   berinteraksi dengan database Anda.
+   
+ * Jika Anda menggunakan React Server Components (mengambil data di server), 
+   Anda dapat melewati lapisan API, dan menanyakan database Anda secara langsung 
+   tanpa risiko memperlihatkan database secrete Anda ke klien.
+ *  
+ */
 export async function fetchLatestInvoices() {
+  noStore();
   try {
     // Fetch the last 5 invoices, sorted by date
     const data = await sql<LatestInvoiceRaw>`
@@ -54,6 +75,7 @@ export async function fetchLatestInvoices() {
 }
 
 export async function fetchCardData() {
+  noStore();
   try {
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
@@ -65,6 +87,11 @@ export async function fetchCardData() {
          SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
          FROM invoices`;
 
+    /** Pengambilan data 'paralel' 
+     * 
+     * Cara umum untuk menghindari 'waterfalls' adalah dengan 
+     * memulai semua permintaan data secara bersamaan - secara 'paralel'
+    */
     const data = await Promise.all([
       invoiceCountPromise,
       customerCountPromise,
@@ -93,6 +120,7 @@ export async function fetchFilteredInvoices(
   query: string,
   currentPage: number
 ) {
+  noStore();
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
@@ -125,6 +153,7 @@ export async function fetchFilteredInvoices(
 }
 
 export async function fetchInvoicesPages(query: string) {
+  noStore();
   try {
     const count = await sql`SELECT COUNT(*)
     FROM invoices
@@ -146,6 +175,7 @@ export async function fetchInvoicesPages(query: string) {
 }
 
 export async function fetchInvoiceById(id: string) {
+  noStore();
   try {
     const data = await sql<InvoiceForm>`
       SELECT
